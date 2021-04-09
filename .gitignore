@@ -1,0 +1,11 @@
+# Development
+.idea/
+.vscode/
+.git/
+dist/
+
+# Yarn
+yarn-error.log
+
+# Node
+node_modules/
