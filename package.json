@@ -1,0 +1,10 @@
+{
+  "name": "@nedbot/modmail",
+  "version": "0.1.0",
+  "description": "A simple communication tool connecting staff with their members.",
+  "main": "dist/index.js",
+  "repository": "https://github.com/nedbot/modmail",
+  "author": "NedBot <contact@nedbot.org>",
+  "license": "Apache-2.0",
+  "private": true
+}
