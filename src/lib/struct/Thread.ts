@@ -179,14 +179,18 @@ export class Thread {
    */
   private async _create() {
     await this._createMailChannel();
+    await this.ensureUser();
 
     const thread = await this.client.db.client.thread.create({
       data: {
-        status: ThreadStatus.OPEN,
+        status: ThreadStatus.CLOSED,
         channel_id: this.channelID,
         user_id: this.userID
       }
     });
+
+    const embed = this.toSystemEmbed(Constants.MessageReceived);
+    if (this._user) await this._user.send(embed);
 
     return this._patch(thread);
   }
@@ -244,10 +248,17 @@ export class Thread {
       .setTimestamp()
       .setThumbnail(this._user.displayAvatarURL({ dynamic: true }))
       .setFooter(`ID: ${threadMessageID} • Message Received`)
-      .setDescription(`${this._user.tag}\n─────────────\n${content}`);
+      .setDescription(`**${this._user.tag}**\n─────────────\n${content}`);
 
     if (formattedAttachments) embed.addField("__Files__", formattedAttachments);
     return embed;
+  }
+
+  private toSystemEmbed(content: string) {
+    return new MessageEmbed()
+      .setColor(Constants.Colors.ThreadMessage)
+      .setThumbnail(this.client.user!.displayAvatarURL())
+      .setDescription(`**System**\n─────────────\n${content}`);
   }
 }
 
