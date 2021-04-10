@@ -47,6 +47,17 @@ export class Client extends AkairoClient {
     if (!guild) return this.rootGuild;
     return guild;
   }
+
+  /**
+   * Resolves the pending category parent channel
+   * @returns The pending category patent channel
+   */
+  public get pendingCategory() {
+    const { channels } = this.inboxGuild;
+    const category = channels.cache.get(process.env.PENDING_CATEGORY_ID!);
+    if (!category) return undefined;
+    return category;
+  }
 }
 
 declare module "discord.js" {
