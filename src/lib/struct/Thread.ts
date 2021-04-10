@@ -1,5 +1,6 @@
+import type { Client, TextChannel, Message } from "discord.js";
 import { Thread as ThreadJSON, ThreadStatus } from "@prisma/client";
-import type { Client, TextChannel } from "discord.js";
+import { normalizeMessage } from "#lib";
 
 export class Thread {
   public client!: Client;
@@ -93,6 +94,22 @@ export class Thread {
     );
   }
 
+  public async addUserMessage(message: Message) {
+    const { content, attachments } = normalizeMessage(message);
+
+    await this.client.db.client.threadMessage.create({
+      data: {
+        content,
+        attachments,
+        thread: {
+          connect: {
+            id: this.id
+          }
+        }
+      }
+    });
+  }
+
   /**
    * Fetches the open Thread for the user
    * @returns This thread
@@ -133,7 +150,7 @@ export class Thread {
   private async _createMailChannel() {
     try {
       const { inboxGuild, pendingCategory } = this.client;
-      const channel = await inboxGuild.channels.create("user-0000", {
+      const channel = await inboxGuild.channels.create(this.userID, {
         parent: pendingCategory,
         position: 0
       });
