@@ -6,3 +6,29 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+model Thread {
+  id       Int             @id @default(autoincrement()) @db.Integer
+  user_id  String          @db.VarChar(20)
+  user     ThreadUser      @relation(fields: [user_id], references: [id])
+  messages ThreadMessage[]
+
+  @@map(name: "threads")
+}
+
+model ThreadMessage {
+  id        Int    @id @default(autoincrement()) @db.Integer
+  thread_id Int    @db.Integer
+  thread    Thread @relation(fields: [thread_id], references: [id])
+
+  @@map(name: "thread_messages")
+}
+
+model ThreadUser {
+  id             String   @id @db.VarChar(20)
+  threads        Thread[]
+  blocked        Boolean  @default(false)
+  blocked_reason String?  @db.VarChar(2000)
+
+  @@map(name: "thread_users")
+}
