@@ -4,7 +4,7 @@ import type {
   Listener,
   ListenerOptions
 } from "discord-akairo";
-import type { Constructable } from "discord.js";
+import type { Constructable, Message } from "discord.js";
 
 export function createClassDecorator(fn: Function) {
   return fn;
@@ -38,4 +38,18 @@ export function InitListener(id: string, options: ListenerOptions) {
       }
     };
   });
+}
+
+/**
+ * Normalizes a message into content and attachments
+ * @param message The message to normalize
+ * @returns The normalized message
+ */
+export function normalizeMessage(message: Message) {
+  const attachments = message.attachments.map((attachment) => ({
+    name: attachment.name ?? "unknown.png",
+    url: attachment.proxyURL
+  }));
+
+  return { content: message.content, attachments };
 }
