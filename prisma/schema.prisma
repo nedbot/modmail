@@ -8,10 +8,11 @@ generator client {
 }
 
 model Thread {
-  id       Int             @id @default(autoincrement()) @db.Integer
-  user_id  String          @db.VarChar(20)
-  user     ThreadUser      @relation(fields: [user_id], references: [id])
-  messages ThreadMessage[]
+  id         Int             @id @default(autoincrement()) @db.Integer
+  channel_id String?         @unique @db.VarChar(20)
+  user_id    String          @db.VarChar(20)
+  user       ThreadUser      @relation(fields: [user_id], references: [id])
+  messages   ThreadMessage[]
 
   @@map(name: "threads")
 }
