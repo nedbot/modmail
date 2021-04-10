@@ -120,6 +120,8 @@ export class Thread {
    * @returns The user for this Thread
    */
   public async ensureUser() {
+    if (this._user) return this._user;
+
     try {
       this._user = await this.client.users.fetch(this.userID);
       return this._user;
@@ -193,6 +195,8 @@ export class Thread {
     const channel = await this._createMailChannel(false);
     if (channel) this.channelID = channel.id;
 
+    await this.ensureUser();
+
     const thread = await this.client.db.client.thread.create({
       data: {
         status: ThreadStatus.OPEN,
@@ -256,7 +260,9 @@ export class Thread {
     const msgs = await this._fetchCurrentMessages();
 
     const logMessage =
-      logs.length - 1 ? `• User has **${logs.length}** previous log(s).` : null;
+      logs.length - 1
+        ? `• User has **${logs.length - 1}** previous log(s).`
+        : null;
 
     const historyMessage = msgs.length
       ? `• The original mail channel was deleted, missing **${msgs.length}** message(s).`
