@@ -21,7 +21,8 @@ model Thread {
 model ThreadMessage {
   id Int @id @default(autoincrement()) @db.Integer
 
-  content     String @db.VarChar(2000)
+  type        ThreadMessageType
+  content     String            @db.VarChar(2000)
   attachments Json[]
 
   thread_id Int    @db.Integer
@@ -42,4 +43,11 @@ model ThreadUser {
 enum ThreadStatus {
   OPEN
   CLOSED
+}
+
+enum ThreadMessageType {
+  USER
+  MOD
+  CHAT
+  COMMAND
 }
