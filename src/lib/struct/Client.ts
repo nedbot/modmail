@@ -1,6 +1,7 @@
 import { AkairoClient, CommandHandler, ListenerHandler } from "discord-akairo";
 import { Database } from "./Database";
 import { join } from "path";
+import { CategoryChannel } from "discord.js";
 
 export class Client extends AkairoClient {
   public commandHandler = new CommandHandler(this, {
@@ -56,6 +57,8 @@ export class Client extends AkairoClient {
     const { channels } = this.inboxGuild;
     const category = channels.cache.get(process.env.PENDING_CATEGORY_ID!);
     if (!category) return undefined;
+    if (!(category instanceof CategoryChannel))
+      throw new Error("Pending category must be a category.");
     return category;
   }
 }
@@ -65,5 +68,6 @@ declare module "discord.js" {
     readonly db: Database;
     readonly rootGuild: Guild;
     readonly inboxGuild: Guild;
+    readonly pendingCategory?: CategoryChannel;
   }
 }
