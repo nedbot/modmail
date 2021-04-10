@@ -73,7 +73,22 @@ export class Thread {
     const thread = await this._fetchOpenThread();
     if (!thread) return this._create();
 
-    await this.ensureMailChannel();
+    const channel = await this.ensureMailChannel();
+    const channelID = channel?.id ?? null;
+
+    if (this.channelID !== channelID) {
+      await this.client.db.client.thread.update({
+        where: {
+          id: this.id
+        },
+        data: {
+          channel_id: channelID
+        }
+      });
+
+      this.channelID = channelID;
+    }
+
     // TODO - Ensure user exists as GuildMember
     // TODO - Check if the user is blocked
 
@@ -188,7 +203,6 @@ export class Thread {
         position: 0
       });
 
-      this.channelID = channel.id;
       return channel;
     } catch (error) {
       console.error(error);
