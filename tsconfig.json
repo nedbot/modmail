@@ -2,11 +2,10 @@
   "compilerOptions": {
     "target": "es6",
     "module": "commonjs",
-    "outDir": "./dist",
-    "declarationDir": "dist/types",
+    "outDir": "dist",
+    "baseUrl": "./",
     "moduleResolution": "node",
     "strict": true,
-    "declaration": true,
     "removeComments": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -18,7 +17,11 @@
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": false,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "lib": ["ESNext"],
+    "paths": {
+      "#lib": ["lib/index.ts"]
+    }
   },
   "exclude": ["node_modules"],
   "include": ["src"]
