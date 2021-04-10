@@ -1,6 +1,10 @@
-import type { Client, TextChannel, Message } from "discord.js";
-import { Thread as ThreadJSON, ThreadStatus } from "@prisma/client";
-import { normalizeMessage } from "#lib";
+import {
+  Thread as ThreadJSON,
+  ThreadStatus,
+  ThreadMessageType
+} from "@prisma/client";
+import { Client, TextChannel, Message, User, MessageEmbed } from "discord.js";
+import { Constants, ThreadMessageAttachment, normalizeMessage } from "#lib";
 
 export class Thread {
   public client!: Client;
@@ -9,6 +13,8 @@ export class Thread {
   public userID: string;
   public status: ThreadStatus = ThreadStatus.OPEN;
   public channelID: string | null = null;
+
+  private _user?: User;
 
   public constructor(client: Client, userID: string, threadJSON?: ThreadJSON) {
     Reflect.defineProperty(this, "client", { value: client });
@@ -94,13 +100,27 @@ export class Thread {
     );
   }
 
+  /**
+   * Ensures the user for this Thread exists
+   * @returns The user for this Thread
+   */
+  public async ensureUser() {
+    try {
+      this._user = await this.client.users.fetch(this.userID);
+      return this._user;
+    } catch (e) {
+      return null;
+    }
+  }
+
   public async addUserMessage(message: Message) {
     const { content, attachments } = normalizeMessage(message);
 
-    await this.client.db.client.threadMessage.create({
+    const threadMessage = await this.client.db.client.threadMessage.create({
       data: {
+        type: ThreadMessageType.USER,
+        attachments: attachments as any,
         content,
-        attachments,
         thread: {
           connect: {
             id: this.id
@@ -108,6 +128,19 @@ export class Thread {
         }
       }
     });
+
+    if (this.mailChannel) {
+      await this.ensureUser();
+
+      const embed = this.toEmbed(
+        ThreadEmbedType.ThreadMessage,
+        threadMessage.id,
+        content,
+        attachments
+      );
+
+      this.mailChannel.send(embed);
+    }
   }
 
   /**
@@ -173,4 +206,38 @@ export class Thread {
     this.userID = threadJSON.user_id;
     return this;
   }
+
+  private toEmbed(
+    type: ThreadEmbedType,
+    threadMessageID: number,
+    content: string,
+    attachments: ThreadMessageAttachment[]
+  ) {
+    if (!this._user)
+      throw new Error("Cannot create thread embed without a user.");
+
+    const color =
+      type === ThreadEmbedType.UserMessage
+        ? Constants.Colors.UserMessage
+        : Constants.Colors.ThreadMessage;
+
+    const formattedAttachments = attachments
+      .map((x) => `**[${x.name}](${x.url})**`)
+      .join("\n");
+
+    const embed = new MessageEmbed()
+      .setColor(color)
+      .setTimestamp()
+      .setThumbnail(this._user.displayAvatarURL({ dynamic: true }))
+      .setFooter(`ID: ${threadMessageID} • Message Received`)
+      .setDescription(`${this._user.tag}\n─────────────\n${content}`);
+
+    if (formattedAttachments) embed.addField("__Files__", formattedAttachments);
+    return embed;
+  }
+}
+
+export enum ThreadEmbedType {
+  ThreadMessage,
+  UserMessage
 }
