@@ -8,7 +8,8 @@ generator client {
 }
 
 model Thread {
-  id         Int             @id @default(autoincrement()) @db.Integer
+  id Int @id @default(autoincrement()) @db.Integer
+
   status     ThreadStatus    @default(OPEN)
   channel_id String?         @unique @db.VarChar(20)
   user_id    String          @db.VarChar(20)
@@ -18,7 +19,11 @@ model Thread {
 }
 
 model ThreadMessage {
-  id        Int    @id @default(autoincrement()) @db.Integer
+  id Int @id @default(autoincrement()) @db.Integer
+
+  content     String @db.VarChar(2000)
+  attachments Json[]
+
   thread_id Int    @db.Integer
   thread    Thread @relation(fields: [thread_id], references: [id])
 
@@ -26,9 +31,10 @@ model ThreadMessage {
 }
 
 model ThreadUser {
-  id             String   @id @db.VarChar(20)
-  blocked        Boolean  @default(false)
-  blocked_reason String?  @db.VarChar(2000)
+  id String @id @db.VarChar(20)
+
+  blocked        Boolean @default(false)
+  blocked_reason String? @db.VarChar(2000)
 
   @@map(name: "thread_users")
 }
