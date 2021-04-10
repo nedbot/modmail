@@ -101,7 +101,7 @@ export class Thread {
    */
   public async ensureMailChannel() {
     if (this.mailChannel) return this.mailChannel;
-    return this._createMailChannel();
+    return this._createMailChannel(true);
   }
 
   /**
@@ -124,6 +124,18 @@ export class Thread {
       this._user = await this.client.users.fetch(this.userID);
       return this._user;
     } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Fetches the thread user as a guild member
+   * @returns The thread user as a guild member
+   */
+  private async _fetchMember() {
+    try {
+      return this.client.rootGuild.members.fetch(this.userID);
+    } catch {
       return null;
     }
   }
@@ -178,10 +190,8 @@ export class Thread {
    * @returns The created Thread
    */
   private async _create() {
-    const channel = await this._createMailChannel();
+    const channel = await this._createMailChannel(false);
     if (channel) this.channelID = channel.id;
-
-    await this.ensureUser();
 
     const thread = await this.client.db.client.thread.create({
       data: {
@@ -194,20 +204,30 @@ export class Thread {
     const embed = this.toSystemEmbed(Constants.MessageReceived);
     if (this._user) await this._user.send(embed);
 
-    return this._patch(thread);
+    this._patch(thread);
+
+    const header = await this.generateHeader();
+    await channel?.send(header);
+
+    return this;
   }
 
   /**
    * Creates the mail channel for this Thread
    * @returns A text channel
    */
-  private async _createMailChannel() {
+  private async _createMailChannel(sendHeader: boolean) {
     try {
       const { inboxGuild, pendingCategory } = this.client;
       const channel = await inboxGuild.channels.create(this.userID, {
         parent: pendingCategory,
         position: 0
       });
+
+      if (sendHeader) {
+        const header = await this.generateHeader();
+        if (header) await channel.send(header);
+      }
 
       return channel;
     } catch (error) {
@@ -225,6 +245,54 @@ export class Thread {
     this.channelID = threadJSON.channel_id;
     this.userID = threadJSON.user_id;
     return this;
+  }
+
+  private async generateHeader() {
+    if (!this.id) throw new Error("Cannot generate header without thread id");
+
+    const user = await this.ensureUser();
+    const member = await this._fetchMember();
+    const logs = await this.client.fetchUserMailLogs(this.userID);
+    const msgs = await this._fetchCurrentMessages();
+
+    const logMessage =
+      logs.length - 1 ? `• User has **${logs.length}** previous log(s).` : null;
+
+    const historyMessage = msgs.length
+      ? `• The original mail channel was deleted, missing **${msgs.length}** message(s).`
+      : null;
+
+    const createdDate = user?.createdAt.toLocaleDateString() ?? "Unknown";
+    const joinDate = member?.joinedAt?.toLocaleDateString() ?? "Unknown";
+
+    return new MessageEmbed()
+      .setColor(Constants.Colors.ThreadMessage)
+      .setThumbnail(this.client.user!.displayAvatarURL())
+      .setTitle(`Thread #${this.id}`)
+      .setDescription(
+        [
+          `**Username:** ${user?.tag ?? "Unknown"}`,
+          `**User ID:** ${this.userID}`,
+          `**Nickname:** ${member?.nickname ?? "None"}`,
+          `**Created on:** ${createdDate}`,
+          `**Joined on:** ${joinDate}`,
+          logMessage ?? historyMessage ? "────────────────────" : null,
+          logMessage,
+          historyMessage
+        ].filter(Boolean)
+      );
+  }
+
+  /**
+   * Fetches the current messages sent in this thread
+   * @returns The messages sent in this thread
+   */
+  private _fetchCurrentMessages() {
+    return this.client.db.client.threadMessage.findMany({
+      where: {
+        thread_id: this.id
+      }
+    });
   }
 
   private toEmbed(
