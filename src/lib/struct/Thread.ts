@@ -178,12 +178,14 @@ export class Thread {
    * @returns The created Thread
    */
   private async _create() {
-    await this._createMailChannel();
+    const channel = await this._createMailChannel();
+    if (channel) this.channelID = channel.id;
+
     await this.ensureUser();
 
     const thread = await this.client.db.client.thread.create({
       data: {
-        status: ThreadStatus.CLOSED,
+        status: ThreadStatus.OPEN,
         channel_id: this.channelID,
         user_id: this.userID
       }
