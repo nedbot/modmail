@@ -9,9 +9,9 @@ generator client {
 
 model Thread {
   id         Int             @id @default(autoincrement()) @db.Integer
+  status     ThreadStatus    @default(OPEN)
   channel_id String?         @unique @db.VarChar(20)
   user_id    String          @db.VarChar(20)
-  user       ThreadUser      @relation(fields: [user_id], references: [id])
   messages   ThreadMessage[]
 
   @@map(name: "threads")
@@ -27,9 +27,13 @@ model ThreadMessage {
 
 model ThreadUser {
   id             String   @id @db.VarChar(20)
-  threads        Thread[]
   blocked        Boolean  @default(false)
   blocked_reason String?  @db.VarChar(2000)
 
   @@map(name: "thread_users")
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
 }
