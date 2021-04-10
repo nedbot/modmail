@@ -70,8 +70,8 @@ export class Thread {
    * @returns This thread
    */
   public async ensure() {
-    const thread = await this._fetchOpenThread();
-    if (!thread) return this._create();
+    const openThread = await this._fetchOpenThread();
+    if (!openThread) return this._create();
 
     const channel = await this.ensureMailChannel();
     const channelID = channel?.id ?? null;
@@ -89,7 +89,6 @@ export class Thread {
       this.channelID = channelID;
     }
 
-    // TODO - Ensure user exists as GuildMember
     // TODO - Check if the user is blocked
 
     return this;
@@ -131,17 +130,9 @@ export class Thread {
   }
 
   /**
-   * Fetches the thread user as a guild member
-   * @returns The thread user as a guild member
+   * Adds an incoming message to this Thread
+   * @param message The message to add to the Thread
    */
-  private async _fetchMember() {
-    try {
-      return this.client.rootGuild.members.fetch(this.userID);
-    } catch {
-      return null;
-    }
-  }
-
   public async addUserMessage(message: Message) {
     const { content, attachments } = normalizeMessage(message);
 
@@ -161,7 +152,7 @@ export class Thread {
     if (this.mailChannel) {
       await this.ensureUser();
 
-      const embed = this.toEmbed(
+      const embed = this._toEmbed(
         ThreadEmbedType.ThreadMessage,
         threadMessage.id,
         content,
@@ -205,12 +196,12 @@ export class Thread {
       }
     });
 
-    const embed = this.toSystemEmbed(Constants.MessageReceived);
-    if (this._user) await this._user.send(embed);
+    const embed = this._toSystemEmbed(Constants.MessageReceived);
+    await this._user?.send(embed);
 
     this._patch(thread);
 
-    const header = await this.generateHeader();
+    const header = await this._generateHeader();
     await channel?.send(header);
 
     return this;
@@ -229,7 +220,7 @@ export class Thread {
       });
 
       if (sendHeader) {
-        const header = await this.generateHeader();
+        const header = await this._generateHeader();
         if (header) await channel.send(header);
       }
 
@@ -241,17 +232,22 @@ export class Thread {
   }
 
   /**
-   * Patches a raw thread object onto this Thread
-   * @param threadJSON The raw thread object
+   * Fetches the thread user as a guild member
+   * @returns The thread user as a guild member
    */
-  private _patch(threadJSON: ThreadJSON) {
-    this.id = threadJSON.id;
-    this.channelID = threadJSON.channel_id;
-    this.userID = threadJSON.user_id;
-    return this;
+  private async _fetchMember() {
+    try {
+      return this.client.rootGuild.members.fetch(this.userID);
+    } catch {
+      return null;
+    }
   }
 
-  private async generateHeader() {
+  /**
+   * Generates the header for this Thread
+   * @returns The thread header embed
+   */
+  private async _generateHeader() {
     if (!this.id) throw new Error("Cannot generate header without thread id");
 
     const user = await this.ensureUser();
@@ -301,7 +297,27 @@ export class Thread {
     });
   }
 
-  private toEmbed(
+  /**
+   * Patches a raw thread object onto this Thread
+   * @param threadJSON The raw thread object
+   */
+  private _patch(threadJSON: ThreadJSON) {
+    this.id = threadJSON.id;
+    this.status = threadJSON.status;
+    this.channelID = threadJSON.channel_id;
+    this.userID = threadJSON.user_id;
+    return this;
+  }
+
+  /**
+   * Creates an embed to format a Thread message
+   * @param type The type of embed
+   * @param threadMessageID The thread message id
+   * @param content The content of the message
+   * @param attachments The files of the message
+   * @returns The constructed embed message
+   */
+  private _toEmbed(
     type: ThreadEmbedType,
     threadMessageID: number,
     content: string,
@@ -330,7 +346,12 @@ export class Thread {
     return embed;
   }
 
-  private toSystemEmbed(content: string) {
+  /**
+   * Creates an embed to format a system message
+   * @param content The content of the message
+   * @returns The constructed system embed message
+   */
+  private _toSystemEmbed(content: string) {
     return new MessageEmbed()
       .setColor(Constants.Colors.ThreadMessage)
       .setThumbnail(this.client.user!.displayAvatarURL())
