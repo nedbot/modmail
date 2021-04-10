@@ -4,7 +4,7 @@ import type {
   Listener,
   ListenerOptions
 } from "discord-akairo";
-import type { Constructable, Message } from "discord.js";
+import { Constructable, Message } from "discord.js";
 
 export function createClassDecorator(fn: Function) {
   return fn;
@@ -49,7 +49,12 @@ export function normalizeMessage(message: Message) {
   const attachments = message.attachments.map((attachment) => ({
     name: attachment.name ?? "unknown.png",
     url: attachment.proxyURL
-  }));
+  })) as ThreadMessageAttachment[];
 
   return { content: message.content, attachments };
+}
+
+export interface ThreadMessageAttachment {
+  name: string;
+  url: string;
 }
