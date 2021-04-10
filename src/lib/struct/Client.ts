@@ -1,7 +1,8 @@
 import { AkairoClient, CommandHandler, ListenerHandler } from "discord-akairo";
+import type { Thread } from "@prisma/client";
+import { CategoryChannel } from "discord.js";
 import { Database } from "./Database";
 import { join } from "path";
-import { CategoryChannel } from "discord.js";
 
 export class Client extends AkairoClient {
   public commandHandler = new CommandHandler(this, {
@@ -61,6 +62,19 @@ export class Client extends AkairoClient {
       throw new Error("Pending category must be a category.");
     return category;
   }
+
+  /**
+   * Fetches the mail logs for a user
+   * @param userID The user to query
+   * @returns The existing mail logs
+   */
+  public fetchUserMailLogs(userID: string) {
+    return this.db.client.thread.findMany({
+      where: {
+        user_id: userID
+      }
+    });
+  }
 }
 
 declare module "discord.js" {
@@ -69,5 +83,6 @@ declare module "discord.js" {
     readonly rootGuild: Guild;
     readonly inboxGuild: Guild;
     readonly pendingCategory?: CategoryChannel;
+    fetchUserMailLogs(userID: string): Promise<Thread[]>;
   }
 }
