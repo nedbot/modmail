@@ -163,6 +163,26 @@ export class Thread {
     }
   }
 
+  public async close() {
+    // TODO - Add scheduled close timer
+    if (this.status === ThreadStatus.CLOSED) return this;
+
+    this.status = ThreadStatus.CLOSED;
+
+    await this.client.db.client.thread.update({
+      where: {
+        id: this.id
+      },
+      data: {
+        status: ThreadStatus.CLOSED
+      }
+    });
+
+    if (this.mailChannel?.deletable) await this.mailChannel.delete();
+
+    return;
+  }
+
   /**
    * Fetches the open Thread for the user
    * @returns This thread
@@ -342,7 +362,8 @@ export class Thread {
       .setFooter(`ID: ${threadMessageID} • Message Received`)
       .setDescription(`**${this._user.tag}**\n─────────────\n${content}`);
 
-    if (formattedAttachments) embed.addField("__Files__", formattedAttachments);
+    if (formattedAttachments)
+      embed.addField("__Attachments__", formattedAttachments);
     return embed;
   }
 
