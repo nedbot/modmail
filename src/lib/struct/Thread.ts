@@ -163,6 +163,10 @@ export class Thread {
     }
   }
 
+  /**
+   * Closes a thread
+   * @returns The closed Thread
+   */
   public async close() {
     // TODO - Add scheduled close timer
     if (this.status === ThreadStatus.CLOSED) return this;
