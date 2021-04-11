@@ -180,7 +180,7 @@ export class Thread {
 
     if (this.mailChannel?.deletable) await this.mailChannel.delete();
 
-    return;
+    return this;
   }
 
   /**
