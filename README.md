@@ -1,4 +1,4 @@
-# Modwire
+# Modmail
 
 <b>🚧 Work in progress - please do not use in production 🚧</b>
 
