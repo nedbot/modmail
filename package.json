@@ -7,6 +7,12 @@
   "author": "NedBot <contact@nedbot.org>",
   "license": "Apache-2.0",
   "private": true,
+  "scripts": {
+    "migrate:dev": "npx prisma migrate dev --name init",
+    "migrate:reset": "npx prisma migrate reset",
+    "start": "node dist/index.js",
+    "build": "tsc"
+  },
   "dependencies": {
     "@prisma/client": "^2.20.1",
     "discord-akairo": "^8.1.0",
