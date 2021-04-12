@@ -188,6 +188,54 @@ export class Thread {
   }
 
   /**
+   * Creates a moderator reply on the thread
+   * @param moderator The author of the message
+   * @param content The content of the message
+   * @param attachments The attachments of the message
+   */
+  public async createModReply(
+    moderator: User,
+    content: string,
+    attachments: ThreadMessageAttachment[]
+  ) {
+    // TODO - Add anonymous sending
+    const threadMessage = await this.client.db.client.threadMessage.create({
+      data: {
+        type: ThreadMessageType.MOD,
+        attachments: attachments as any,
+        content,
+        thread: {
+          connect: {
+            id: this.id
+          }
+        }
+      }
+    });
+
+    await this.ensureUser();
+
+    if (this.mailChannel) {
+      const embed = this._toEmbed(
+        ThreadEmbedType.UserMessage,
+        threadMessage.id,
+        content,
+        attachments
+      );
+
+      this.mailChannel.send(embed);
+    }
+
+    const replyEmbed = this._toEmbed(
+      ThreadEmbedType.ThreadMessage,
+      threadMessage.id,
+      content,
+      attachments
+    );
+
+    this._user?.send(replyEmbed).catch(() => null);
+  }
+
+  /**
    * Fetches the open Thread for the user
    * @returns This thread
    */
