@@ -111,17 +111,6 @@ export class Thread {
   }
 
   /**
-   * Resolves the mail channel assigned to this Thread
-   * @returns A text channel
-   */
-  public get mailChannel() {
-    if (!this.channelID) return undefined;
-    return <TextChannel>(
-      this.client.inboxGuild.channels.cache.get(this.channelID)
-    );
-  }
-
-  /**
    * Ensures the user for this Thread exists
    * @returns The user for this Thread
    */
@@ -285,6 +274,17 @@ export class Thread {
   }
 
   /**
+   * Resolves the mail channel assigned to this Thread
+   * @returns A text channel
+   */
+  public get mailChannel() {
+    if (!this.channelID) return undefined;
+    return <TextChannel>(
+      this.client.inboxGuild.channels.cache.get(this.channelID)
+    );
+  }
+
+  /**
    * Fetches the open Thread for the user
    * @returns This thread
    */
@@ -317,7 +317,7 @@ export class Thread {
       }
     });
 
-    const embed = this._toSystemEmbed(Constants.MessageReceived);
+    const embed = this._createSystemEmbed(Constants.MessageReceived);
     await this._user?.send(embed);
 
     this._patch(thread);
@@ -472,7 +472,7 @@ export class Thread {
    * @param content The content of the message
    * @returns The constructed system embed message
    */
-  private _toSystemEmbed(content: string) {
+  private _createSystemEmbed(content: string) {
     return new MessageEmbed()
       .setColor(Constants.Colors.Primary)
       .setThumbnail(this.client.user!.displayAvatarURL())
