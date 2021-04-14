@@ -126,6 +126,30 @@ export class Thread {
   }
 
   /**
+   * Suspends a thread
+   * @returns The suspended thread
+   */
+  public async suspend() {
+    if (this.status === ThreadStatus.SUSPENDED) return this;
+
+    this.status = ThreadStatus.SUSPENDED;
+
+    await this.client.db.client.thread.update({
+      where: {
+        id: this.id
+      },
+      data: {
+        status: ThreadStatus.SUSPENDED
+      }
+    });
+
+    if (this.mailChannel?.manageable && this.client.suspendedCategory)
+      await this.mailChannel.setParent(this.client.suspendedCategory);
+
+    return this;
+  }
+
+  /**
    * Closes a thread
    * @returns The closed Thread
    */
