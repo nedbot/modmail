@@ -5,6 +5,7 @@ import type {
   ListenerOptions
 } from "discord-akairo";
 import { Constructable, Message } from "discord.js";
+import { Constants, ThreadEmbedType } from "#lib";
 
 export function createClassDecorator(fn: Function) {
   return fn;
@@ -41,20 +42,62 @@ export function InitListener(id: string, options: ListenerOptions) {
 }
 
 /**
+ * Parses the thread embed type into a color
+ * @param type The type of embed
+ * @returns The color of the embed
+ */
+export function parseEmbedTypeToColor(type: ThreadEmbedType) {
+  switch (type) {
+    case ThreadEmbedType.ThreadMessageSent:
+      return Constants.Colors.Green;
+    case ThreadEmbedType.ThreadMessageFailed:
+      return Constants.Colors.Red;
+    default:
+      return Constants.Colors.Primary;
+  }
+}
+
+/**
+ * Parses the thread embed type into a color
+ * @param type The type of embed
+ * @returns The color of the embed
+ */
+export function parseEmbedTypeToString(type: ThreadEmbedType) {
+  switch (type) {
+    case ThreadEmbedType.ThreadMessageSent:
+      return "Message Sent";
+    case ThreadEmbedType.ThreadMessageFailed:
+      return "Message Failed";
+    default:
+      return "Message Received";
+  }
+}
+
+/**
  * Normalizes a message into content and attachments
  * @param message The message to normalize
  * @returns The normalized message
  */
-export function normalizeMessage(message: Message) {
+export function normalizeMessage(
+  message: Message | NormalizedMessage
+): NormalizedMessage {
+  if (!(message instanceof Message)) return message;
+
   const attachments = message.attachments.map((attachment) => ({
     name: attachment.name ?? "unknown.png",
     url: attachment.proxyURL
-  })) as ThreadMessageAttachment[];
+  }));
 
-  return { content: message.content, attachments };
+  return { authorID: message.author.id, content: message.content, attachments };
 }
 
-export interface ThreadMessageAttachment {
-  name: string;
-  url: string;
+export interface NormalizedMessage {
+  readonly authorID: string;
+  readonly content: string;
+  readonly attachments: ThreadAttachment[];
+}
+
+export interface ThreadAttachment {
+  readonly name: string;
+  readonly url: string;
 }
