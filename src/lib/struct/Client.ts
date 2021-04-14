@@ -64,6 +64,19 @@ export class Client extends AkairoClient {
   }
 
   /**
+   * Resolves the suspended category parent channel
+   * @returns The suspended category patent channel
+   */
+  public get suspendedCategory() {
+    const { channels } = this.inboxGuild;
+    const category = channels.cache.get(process.env.SUSPENDED_CATEGORY_ID!);
+    if (!category) return undefined;
+    if (!(category instanceof CategoryChannel))
+      throw new Error("Suspended category must be a category.");
+    return category;
+  }
+
+  /**
    * Fetches the mail logs for a user
    * @param userID The user to query
    * @returns The existing mail logs
@@ -83,6 +96,7 @@ declare module "discord.js" {
     readonly rootGuild: Guild;
     readonly inboxGuild: Guild;
     readonly pendingCategory?: CategoryChannel;
+    readonly suspendedCategory?: CategoryChannel;
     fetchUserMailLogs(userID: string): Promise<Thread[]>;
   }
 }
