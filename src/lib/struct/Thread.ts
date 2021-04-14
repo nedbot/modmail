@@ -150,6 +150,33 @@ export class Thread {
   }
 
   /**
+   * Unsuspends a thread
+   * @returns The open thread
+   */
+  public async unsuspend() {
+    if (this.status !== ThreadStatus.SUSPENDED) return this;
+
+    const openThread = await this._fetchOpenThread();
+    if (openThread) throw new Error("Close the user's open thread first.");
+
+    this.status = ThreadStatus.OPEN;
+
+    await this.client.db.client.thread.update({
+      where: {
+        id: this.id
+      },
+      data: {
+        status: ThreadStatus.OPEN
+      }
+    });
+
+    if (this.mailChannel?.manageable && this.client.pendingCategory)
+      await this.mailChannel.setParent(this.client.pendingCategory);
+
+    this.status = "OPEN";
+  }
+
+  /**
    * Closes a thread
    * @returns The closed Thread
    */
