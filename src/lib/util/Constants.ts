@@ -1,6 +1,7 @@
 export enum Colors {
-  ThreadMessage = 0x0a7c7e7,
-  UserMessage = 0x77dd77
+  Primary = 0xc3b1e1,
+  Green = 0x77dd77,
+  Red = 0xff6961
 }
 
 export const MessageReceived =
