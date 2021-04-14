@@ -1,6 +1,7 @@
 import type { Message } from "discord.js";
 import { Listener } from "discord-akairo";
 import { InitListener, Thread } from "#lib";
+import { ThreadMessageType } from ".prisma/client";
 
 @InitListener("directMessage", {
   event: "message",
@@ -11,6 +12,6 @@ export default class DirectMessage extends Listener {
     if (message.guild || message.author.bot) return;
 
     const thread = await new Thread(this.client, message.author.id).ensure();
-    await thread.addUserMessage(message);
+    await thread.createThreadMessage(ThreadMessageType.THREAD_USER, message);
   }
 }
