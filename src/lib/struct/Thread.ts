@@ -1,10 +1,17 @@
 import {
+  Constants,
+  NormalizedMessage,
+  ThreadAttachment,
+  normalizeMessage,
+  parseEmbedTypeToColor,
+  parseEmbedTypeToString
+} from "#lib";
+import {
   Thread as ThreadJSON,
   ThreadStatus,
   ThreadMessageType
 } from "@prisma/client";
 import { Client, TextChannel, Message, User, MessageEmbed } from "discord.js";
-import { Constants, ThreadMessageAttachment, normalizeMessage } from "#lib";
 
 export class Thread {
   public client!: Client;
@@ -130,40 +137,6 @@ export class Thread {
   }
 
   /**
-   * Adds an incoming message to this Thread
-   * @param message The message to add to the Thread
-   */
-  public async addUserMessage(message: Message) {
-    const { content, attachments } = normalizeMessage(message);
-
-    const threadMessage = await this.client.db.client.threadMessage.create({
-      data: {
-        type: ThreadMessageType.USER,
-        attachments: attachments as any,
-        content,
-        thread: {
-          connect: {
-            id: this.id
-          }
-        }
-      }
-    });
-
-    if (this.mailChannel) {
-      await this.ensureUser();
-
-      const embed = this._toEmbed(
-        ThreadEmbedType.ThreadMessage,
-        threadMessage.id,
-        content,
-        attachments
-      );
-
-      this.mailChannel.send(embed);
-    }
-  }
-
-  /**
    * Closes a thread
    * @returns The closed Thread
    */
@@ -188,22 +161,22 @@ export class Thread {
   }
 
   /**
-   * Creates a moderator reply on the thread
-   * @param moderator The author of the message
-   * @param content The content of the message
-   * @param attachments The attachments of the message
+   * Creates a thread message
+   * @param type The type of message
+   * @param message The message to parse
    */
-  public async createModReply(
-    moderator: User,
-    content: string,
-    attachments: ThreadMessageAttachment[]
+  public async createThreadMessage(
+    type: ThreadMessageType,
+    message: Message | NormalizedMessage
   ) {
-    // TODO - Add anonymous sending
+    const { authorID, content, attachments } = normalizeMessage(message);
+
     const threadMessage = await this.client.db.client.threadMessage.create({
       data: {
-        type: ThreadMessageType.MOD,
-        attachments: attachments as any,
+        type,
         content,
+        attachments: <any>attachments,
+        author_id: authorID,
         thread: {
           connect: {
             id: this.id
@@ -214,25 +187,101 @@ export class Thread {
 
     await this.ensureUser();
 
-    if (this.mailChannel) {
-      const embed = this._toEmbed(
-        ThreadEmbedType.UserMessage,
+    if (type === ThreadMessageType.MOD_REPLY) {
+      const userMessage = await this.sendMessageToUser(
         threadMessage.id,
         content,
         attachments
       );
 
-      this.mailChannel.send(embed);
+      await this.sendMessageToChannel(
+        threadMessage.id,
+        content,
+        attachments,
+        !!userMessage
+      );
+    } else {
+      await this.sendMessageToChannel(threadMessage.id, content, attachments);
     }
 
-    const replyEmbed = this._toEmbed(
-      ThreadEmbedType.ThreadMessage,
-      threadMessage.id,
+    return threadMessage;
+  }
+
+  /**
+   * Sends a message to the thread user
+   * @param threadMessageID The id of the thread message
+   * @param content The content of the thread message
+   * @param attachments The attachments of the thread message
+   * @returns The message sent to the thread user
+   */
+  public async sendMessageToUser(
+    threadMessageID: number,
+    content: string,
+    attachments: ThreadAttachment[]
+  ) {
+    const user = await this.ensureUser();
+    if (!user) throw new Error("Unable to resolve thread user.");
+
+    const embed = this._createThreadEmbed(
+      ThreadEmbedType.ModReply,
+      threadMessageID,
       content,
       attachments
     );
 
-    this._user?.send(replyEmbed).catch(() => null);
+    return user.send(embed).catch(() => false);
+  }
+
+  /**
+   * Sends a message to the thread channel
+   * @param threadMessageID The id of the thread message
+   * @param content The content of the thread message
+   * @param attachments The attachments of the thread message
+   * @param userSuccess The message sent to the thread channel
+   * @returns The message sent to the thread channel
+   */
+  public async sendMessageToChannel(
+    threadMessageID: number,
+    content: string,
+    attachments: ThreadAttachment[],
+    userSuccess?: boolean
+  ) {
+    const channel = await this.ensureMailChannel();
+    if (!channel) throw new Error("Unable to resolve thread channel.");
+
+    const embedType =
+      userSuccess === undefined
+        ? ThreadEmbedType.ThreadMessageReceived
+        : userSuccess
+        ? ThreadEmbedType.ThreadMessageSent
+        : ThreadEmbedType.ThreadMessageFailed;
+
+    const embed = this._createThreadEmbed(
+      embedType,
+      threadMessageID,
+      content,
+      attachments
+    );
+
+    return channel.send(embed);
+  }
+
+  /**
+   * Creates a moderator reply on the thread
+   * @param moderator The author of the message
+   * @param content The content of the message
+   * @param attachments The attachments of the message
+   */
+  public async createModReply(
+    moderator: User,
+    content: string,
+    attachments: ThreadAttachment[]
+  ) {
+    return this.createThreadMessage(ThreadMessageType.MOD_REPLY, {
+      content,
+      attachments,
+      authorID: moderator.id
+    });
   }
 
   /**
@@ -340,7 +389,7 @@ export class Thread {
     const joinDate = member?.joinedAt?.toLocaleDateString() ?? "Unknown";
 
     return new MessageEmbed()
-      .setColor(Constants.Colors.ThreadMessage)
+      .setColor(Constants.Colors.Primary)
       .setThumbnail(this.client.user!.displayAvatarURL())
       .setTitle(`Thread #${this.id}`)
       .setDescription(
@@ -389,33 +438,32 @@ export class Thread {
    * @param attachments The files of the message
    * @returns The constructed embed message
    */
-  private _toEmbed(
+  private _createThreadEmbed(
     type: ThreadEmbedType,
     threadMessageID: number,
     content: string,
-    attachments: ThreadMessageAttachment[]
+    attachments: ThreadAttachment[]
   ) {
     if (!this._user)
       throw new Error("Cannot create thread embed without a user.");
-
-    const color =
-      type === ThreadEmbedType.UserMessage
-        ? Constants.Colors.UserMessage
-        : Constants.Colors.ThreadMessage;
 
     const formattedAttachments = attachments
       .map((x) => `**[${x.name}](${x.url})**`)
       .join("\n");
 
     const embed = new MessageEmbed()
-      .setColor(color)
-      .setTimestamp()
+      .setColor(parseEmbedTypeToColor(type))
       .setThumbnail(this._user.displayAvatarURL({ dynamic: true }))
-      .setFooter(`ID: ${threadMessageID} • Message Received`)
       .setDescription(`**${this._user.tag}**\n─────────────\n${content}`);
 
+    if (type !== ThreadEmbedType.ModReply)
+      embed
+        .setFooter(`ID: ${threadMessageID} • ${parseEmbedTypeToString(type)}`)
+        .setTimestamp();
+
     if (formattedAttachments)
-      embed.addField("__Attachments__", formattedAttachments);
+      embed.addField("__Attachments:__", formattedAttachments);
+
     return embed;
   }
 
@@ -426,13 +474,15 @@ export class Thread {
    */
   private _toSystemEmbed(content: string) {
     return new MessageEmbed()
-      .setColor(Constants.Colors.ThreadMessage)
+      .setColor(Constants.Colors.Primary)
       .setThumbnail(this.client.user!.displayAvatarURL())
       .setDescription(`**System**\n─────────────\n${content}`);
   }
 }
 
 export enum ThreadEmbedType {
-  ThreadMessage,
-  UserMessage
+  ThreadMessageReceived,
+  ThreadMessageSent,
+  ThreadMessageFailed,
+  ModReply
 }
