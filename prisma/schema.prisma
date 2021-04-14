@@ -44,6 +44,7 @@ model ThreadUser {
 enum ThreadStatus {
   OPEN
   CLOSED
+  SUSPENDED
 }
 
 enum ThreadMessageType {
