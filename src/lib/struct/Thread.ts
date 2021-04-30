@@ -18,6 +18,7 @@ export class Thread {
   public userID: string;
   public status: ThreadStatus = ThreadStatus.OPEN;
   public channelID: string | null = null;
+  public subscriptions: string[] = [];
 
   private _user?: User;
 
@@ -200,6 +201,27 @@ export class Thread {
   }
 
   /**
+   * Subscribes a user to thread message alerts
+   * @param userID The user that subscribed
+   * @returns The thread
+   */
+  public async subscribe(userID: string) {
+    if (this.subscriptions.includes(userID)) return this;
+    this.subscriptions = [...this.subscriptions, userID];
+
+    await this.client.db.client.thread.update({
+      where: {
+        id: this.id
+      },
+      data: {
+        subscriptions: this.subscriptions
+      }
+    });
+
+    return this;
+  }
+
+  /**
    * Creates a thread interaction
    * @param type The type of interaction
    * @param message The content of the interaction
@@ -327,7 +349,12 @@ export class Thread {
   ) {
     const embed = this._createInteractionEmbed(author, message);
 
+    let content = "";
+
     if (options) {
+      if (options.embedType === ThreadEmbedType.MessageReceived)
+        content = this.subscriptions.map((x) => `<@${x}>`).join(" ");
+
       const embedType = parseEmbedTypeToString(options.embedType);
       const color = options.success
         ? Constants.Colors.Green
@@ -340,7 +367,7 @@ export class Thread {
         .setTimestamp();
     }
 
-    return this.mailChannel ? this.mailChannel.send(embed) : null;
+    return this.mailChannel ? this.mailChannel.send({ content, embed }) : null;
   }
 
   /**
@@ -521,6 +548,7 @@ export class Thread {
     this.status = threadJSON.status;
     this.channelID = threadJSON.channel_id;
     this.userID = threadJSON.user_id;
+    this.subscriptions = threadJSON.subscriptions;
     return this;
   }
 
