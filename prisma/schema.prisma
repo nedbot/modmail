@@ -28,6 +28,7 @@ model Interaction {
   id Int @id @default(autoincrement()) @db.Integer
 
   type        InteractionType
+  failed      Boolean         @default(false)
   author_id   String          @db.VarChar(20)
   content     String          @db.VarChar(2000)
   attachments Json[]
