@@ -206,11 +206,28 @@ export class Thread {
    * @param failed Whether the interaction failed
    * @returns The created interaction
    */
-  public createInteraction(
+  public async createInteraction(
     type: InteractionType,
     message: NormalizedMessage,
     failed: boolean = false
   ) {
+    let isAnswered: boolean | null = null;
+    if (InteractionType.MODERATOR === type) isAnswered = true;
+    if (InteractionType.RECIPIENT === type) isAnswered = false;
+
+    if (isAnswered !== null) {
+      await this.client.db.client.thread.update({
+        where: {
+          id: this.id
+        },
+        data: {
+          is_answered: isAnswered
+        }
+      });
+
+      if (isAnswered) this.setParent(ThreadParentType.InProgress);
+    }
+
     return this.client.db.client.interaction.create({
       data: {
         type,
@@ -319,7 +336,7 @@ export class Thread {
       if (options.success !== undefined) embed.setColor(color);
 
       embed
-        .setFooter(`ID ${options.interactionID} • ${embedType}`)
+        .setFooter(`ID: ${options.interactionID} • ${embedType}`)
         .setTimestamp();
     }
 
@@ -407,6 +424,25 @@ export class Thread {
     } catch (error) {
       console.error(error);
       return null;
+    }
+  }
+
+  /**
+   * Sets the parent of the mail channel
+   * @param parent The channel parent
+   * @returns The mail channel
+   */
+  private async setParent(parent: ThreadParentType) {
+    switch (parent) {
+      case ThreadParentType.Pending:
+        if (!this.client.pendingCategory?.manageable) return;
+        return this.mailChannel?.setParent(this.client.pendingCategory);
+      case ThreadParentType.InProgress:
+        if (!this.client.inProgressCategory?.manageable) return;
+        return this.mailChannel?.setParent(this.client.inProgressCategory);
+      case ThreadParentType.Suspended:
+        if (!this.client.suspendedCategory?.manageable) return;
+        return this.mailChannel?.setParent(this.client.suspendedCategory);
     }
   }
 
@@ -527,6 +563,12 @@ export enum ThreadEmbedType {
   MessageReceived,
   MessageSent,
   MessageFailed
+}
+
+export enum ThreadParentType {
+  Pending,
+  InProgress,
+  Suspended
 }
 
 export interface InteractionOptions {
