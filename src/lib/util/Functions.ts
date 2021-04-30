@@ -5,7 +5,7 @@ import type {
   ListenerOptions
 } from "discord-akairo";
 import { Constructable, Message } from "discord.js";
-import { Constants, ThreadEmbedType } from "#lib";
+import { ThreadEmbedType } from "#lib";
 
 export function createClassDecorator(fn: Function) {
   return fn;
@@ -46,27 +46,11 @@ export function InitListener(id: string, options: ListenerOptions) {
  * @param type The type of embed
  * @returns The color of the embed
  */
-export function parseEmbedTypeToColor(type: ThreadEmbedType) {
-  switch (type) {
-    case ThreadEmbedType.ThreadMessageSent:
-      return Constants.Colors.Green;
-    case ThreadEmbedType.ThreadMessageFailed:
-      return Constants.Colors.Red;
-    default:
-      return Constants.Colors.Primary;
-  }
-}
-
-/**
- * Parses the thread embed type into a color
- * @param type The type of embed
- * @returns The color of the embed
- */
 export function parseEmbedTypeToString(type: ThreadEmbedType) {
   switch (type) {
-    case ThreadEmbedType.ThreadMessageSent:
+    case ThreadEmbedType.MessageSent:
       return "Message Sent";
-    case ThreadEmbedType.ThreadMessageFailed:
+    case ThreadEmbedType.MessageFailed:
       return "Message Failed";
     default:
       return "Message Received";
