@@ -11,7 +11,7 @@ import { InitCommand, normalizeMessage, Thread } from "#lib";
     }
   ]
 })
-export default class Close extends Command {
+export default class Reply extends Command {
   public async exec(message: Message, args: Args) {
     const thread = await Thread.fromThreadChannelID(
       this.client,
@@ -22,13 +22,13 @@ export default class Close extends Command {
       const { attachments } = normalizeMessage(message);
 
       if (!args.content && !attachments.length)
-        return message.channel.send("You must provide something to send");
+        return message.channel.send("You must provide something to send.");
 
-      await thread.createModReply(
-        message.author,
-        args.content ?? "",
+      await thread.createModeratorInteraction(message.author, {
+        authorID: message.author.id,
+        content: args.content ?? "",
         attachments
-      );
+      });
     }
   }
 }
