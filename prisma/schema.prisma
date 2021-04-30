@@ -10,35 +10,42 @@ generator client {
 model Thread {
   id Int @id @default(autoincrement()) @db.Integer
 
-  status     ThreadStatus    @default(OPEN)
-  channel_id String?         @unique @db.VarChar(20)
-  user_id    String          @db.VarChar(20)
-  messages   ThreadMessage[]
+  status     ThreadStatus @default(OPEN)
+  channel_id String?      @unique @db.VarChar(20)
+  user_id    String       @db.VarChar(20)
+
+  is_answered   Boolean       @default(false)
+  interactions  Interaction[]
+  subscriptions String[]
+
+  created_at DateTime  @default(now()) @db.Timestamptz
+  closed_at  DateTime? @db.Timestamptz
 
   @@map(name: "threads")
 }
 
-model ThreadMessage {
+model Interaction {
   id Int @id @default(autoincrement()) @db.Integer
 
-  type        ThreadMessageType
-  author_id   String            @db.VarChar(20)
-  content     String            @db.VarChar(2000)
+  type        InteractionType
+  author_id   String          @db.VarChar(20)
+  content     String          @db.VarChar(2000)
   attachments Json[]
 
   thread_id Int    @db.Integer
   thread    Thread @relation(fields: [thread_id], references: [id])
 
-  @@map(name: "thread_messages")
+  @@map(name: "interactions")
 }
 
-model ThreadUser {
+model User {
   id String @id @db.VarChar(20)
 
-  blocked        Boolean @default(false)
-  blocked_reason String? @db.VarChar(2000)
+  blocked        Boolean   @default(false)
+  blocked_at     DateTime? @db.Timestamptz
+  blocked_reason String?   @db.VarChar(2000)
 
-  @@map(name: "thread_users")
+  @@map(name: "users")
 }
 
 enum ThreadStatus {
@@ -47,9 +54,9 @@ enum ThreadStatus {
   SUSPENDED
 }
 
-enum ThreadMessageType {
-  MOD_REPLY
-  THREAD_USER
-  THRAD_CHAT
-  THREAD_COMMAND
+enum InteractionType {
+  MODERATOR
+  RECIPIENT
+  COMMAND
+  CHAT
 }
