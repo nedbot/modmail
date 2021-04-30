@@ -9,7 +9,7 @@ import {
 import {
   Thread as ThreadJSON,
   ThreadStatus,
-  ThreadMessageType
+  InteractionType
 } from "@prisma/client";
 import { Client, TextChannel, Message, User, MessageEmbed } from "discord.js";
 
@@ -206,12 +206,12 @@ export class Thread {
    * @param message The message to parse
    */
   public async createThreadMessage(
-    type: ThreadMessageType,
+    type: InteractionType,
     message: Message | NormalizedMessage
   ) {
     const { authorID, content, attachments } = normalizeMessage(message);
 
-    const threadMessage = await this.client.db.client.threadMessage.create({
+    const threadMessage = await this.client.db.client.interaction.create({
       data: {
         type,
         content,
@@ -227,7 +227,7 @@ export class Thread {
 
     await this.ensureUser();
 
-    if (type === ThreadMessageType.MOD_REPLY) {
+    if (type === InteractionType.MODERATOR) {
       const userMessage = await this.sendMessageToUser(
         threadMessage.id,
         content,
@@ -317,7 +317,7 @@ export class Thread {
     content: string,
     attachments: ThreadAttachment[]
   ) {
-    return this.createThreadMessage(ThreadMessageType.MOD_REPLY, {
+    return this.createThreadMessage(InteractionType.MODERATOR, {
       content,
       attachments,
       authorID: moderator.id
@@ -462,7 +462,7 @@ export class Thread {
    * @returns The messages sent in this thread
    */
   private _fetchCurrentMessages() {
-    return this.client.db.client.threadMessage.findMany({
+    return this.client.db.client.interaction.findMany({
       where: {
         thread_id: this.id
       }
