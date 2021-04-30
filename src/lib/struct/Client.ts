@@ -1,8 +1,8 @@
 import { AkairoClient, CommandHandler, ListenerHandler } from "discord-akairo";
 import type { Thread } from "@prisma/client";
-import { CategoryChannel } from "discord.js";
 import { Database } from "./Database";
 import { join } from "path";
+import { CategoryChannel } from "discord.js";
 
 export class Client extends AkairoClient {
   public commandHandler = new CommandHandler(this, {
@@ -64,6 +64,19 @@ export class Client extends AkairoClient {
   }
 
   /**
+   * Resolves the in-progress category parent channel
+   * @returns The in-progress category patent channel
+   */
+  public get inProgressCategory() {
+    const { channels } = this.inboxGuild;
+    const category = channels.cache.get(process.env.IN_PROGRESS_CATEGORY_ID!);
+    if (!category) return undefined;
+    if (!(category instanceof CategoryChannel))
+      throw new Error("In Progress category must be a category.");
+    return category;
+  }
+
+  /**
    * Resolves the suspended category parent channel
    * @returns The suspended category patent channel
    */
@@ -96,6 +109,7 @@ declare module "discord.js" {
     readonly rootGuild: Guild;
     readonly inboxGuild: Guild;
     readonly pendingCategory?: CategoryChannel;
+    readonly inProgressCategory?: CategoryChannel;
     readonly suspendedCategory?: CategoryChannel;
     fetchUserMailLogs(userID: string): Promise<Thread[]>;
   }
