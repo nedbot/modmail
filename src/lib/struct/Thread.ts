@@ -171,6 +171,8 @@ export class Thread {
       await this.mailChannel.setParent(this.client.pendingCategory);
 
     this.status = "OPEN";
+
+    return this;
   }
 
   /**
@@ -385,8 +387,13 @@ export class Thread {
    */
   private async _createMailChannel(sendHeader: boolean) {
     try {
+      const user = await this.ensureUser();
+      if (!user) throw new Error("Unable to resolve thread user.");
+
+      const channelName = `${user.username}-${user.discriminator}`;
+
       const { inboxGuild, pendingCategory } = this.client;
-      const channel = await inboxGuild.channels.create(this.userID, {
+      const channel = await inboxGuild.channels.create(channelName, {
         parent: pendingCategory,
         position: 0
       });
