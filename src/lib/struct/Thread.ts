@@ -1,9 +1,7 @@
 import {
   Constants,
   NormalizedMessage,
-  ThreadAttachment,
   normalizeMessage,
-  parseEmbedTypeToColor,
   parseEmbedTypeToString
 } from "#lib";
 import {
@@ -25,9 +23,8 @@ export class Thread {
 
   public constructor(client: Client, userID: string, threadJSON?: ThreadJSON) {
     Reflect.defineProperty(this, "client", { value: client });
-    this.userID = userID;
-
     if (threadJSON) this._patch(threadJSON);
+    this.userID = userID;
   }
 
   /**
@@ -201,22 +198,24 @@ export class Thread {
   }
 
   /**
-   * Creates a thread message
-   * @param type The type of message
-   * @param message The message to parse
+   * Creates a thread interaction
+   * @param type The type of interaction
+   * @param message The content of the interaction
+   * @param failed Whether the interaction failed
+   * @returns The created interaction
    */
-  public async createThreadMessage(
+  public createInteraction(
     type: InteractionType,
-    message: Message | NormalizedMessage
+    message: NormalizedMessage,
+    failed: boolean = false
   ) {
-    const { authorID, content, attachments } = normalizeMessage(message);
-
-    const threadMessage = await this.client.db.client.interaction.create({
+    return this.client.db.client.interaction.create({
       data: {
         type,
-        content,
-        attachments: <any>attachments,
-        author_id: authorID,
+        failed,
+        content: message.content,
+        attachments: <any>message.attachments,
+        author_id: message.authorID,
         thread: {
           connect: {
             id: this.id
@@ -224,104 +223,105 @@ export class Thread {
         }
       }
     });
-
-    await this.ensureUser();
-
-    if (type === InteractionType.MODERATOR) {
-      const userMessage = await this.sendMessageToUser(
-        threadMessage.id,
-        content,
-        attachments
-      );
-
-      await this.sendMessageToChannel(
-        threadMessage.id,
-        content,
-        attachments,
-        !!userMessage
-      );
-    } else {
-      await this.sendMessageToChannel(threadMessage.id, content, attachments);
-    }
-
-    return threadMessage;
   }
 
   /**
-   * Sends a message to the thread user
-   * @param threadMessageID The id of the thread message
-   * @param content The content of the thread message
-   * @param attachments The attachments of the thread message
-   * @returns The message sent to the thread user
+   * Creates a moderator interaction
+   * @param message The content of the interaction
+   * @returns The created interaction
    */
-  public async sendMessageToUser(
-    threadMessageID: number,
-    content: string,
-    attachments: ThreadAttachment[]
+  public async createModeratorInteraction(
+    author: User,
+    message: InteractionContent
+  ) {
+    const normalized = normalizeMessage(message);
+    const response = await this.sendMessageToRecipient(author, normalized);
+
+    const interaction = await this.createInteraction(
+      InteractionType.MODERATOR,
+      normalized,
+      !response
+    );
+
+    await this.sendMessageToChannel(author, normalized, {
+      interactionID: interaction.id,
+      embedType: response
+        ? ThreadEmbedType.MessageSent
+        : ThreadEmbedType.MessageFailed,
+      success: !!response
+    });
+
+    return interaction;
+  }
+
+  /**
+   * Creates a recipient interaction
+   * @param message The content of the interaction
+   * @returns The created interaction
+   */
+  public async createRecipientInteraction(message: InteractionContent) {
+    const normalized = normalizeMessage(message);
+    const user = await this.ensureUser();
+    if (!user) throw new Error("Unable to resolve thread user.");
+
+    const interaction = await this.createInteraction(
+      InteractionType.RECIPIENT,
+      normalized
+    );
+
+    await this.sendMessageToChannel(user, normalized, {
+      interactionID: interaction.id,
+      embedType: ThreadEmbedType.MessageReceived
+    });
+
+    return interaction;
+  }
+
+  /**
+   * Sends a message to the recipient of the thread
+   * @param author The author of the message
+   * @param message The contents of the message
+   * @returns The message or null if it failed to send
+   */
+  public async sendMessageToRecipient(
+    author: User,
+    message: NormalizedMessage
   ) {
     const user = await this.ensureUser();
     if (!user) throw new Error("Unable to resolve thread user.");
 
-    const embed = this._createThreadEmbed(
-      ThreadEmbedType.ModReply,
-      threadMessageID,
-      content,
-      attachments
-    );
+    const embed = this._createInteractionEmbed(author, message);
 
-    return user.send(embed).catch(() => false);
+    return user.send(embed).catch(() => null);
   }
 
   /**
    * Sends a message to the thread channel
-   * @param threadMessageID The id of the thread message
-   * @param content The content of the thread message
-   * @param attachments The attachments of the thread message
-   * @param userSuccess The message sent to the thread channel
-   * @returns The message sent to the thread channel
+   * @param author The author of the message
+   * @param message The contents of the message
+   * @returns The message or null if it failed to send
    */
-  public async sendMessageToChannel(
-    threadMessageID: number,
-    content: string,
-    attachments: ThreadAttachment[],
-    userSuccess?: boolean
+  public sendMessageToChannel(
+    author: User,
+    message: NormalizedMessage,
+    options?: InteractionOptions
   ) {
-    const channel = await this.ensureMailChannel();
-    if (!channel) throw new Error("Unable to resolve thread channel.");
+    const embed = this._createInteractionEmbed(author, message);
 
-    const embedType =
-      userSuccess === undefined
-        ? ThreadEmbedType.ThreadMessageReceived
-        : userSuccess
-        ? ThreadEmbedType.ThreadMessageSent
-        : ThreadEmbedType.ThreadMessageFailed;
+    if (options) {
+      const embedType = parseEmbedTypeToString(options.embedType);
+      const color = options.success
+        ? Constants.Colors.Green
+        : Constants.Colors.Red;
 
-    const embed = this._createThreadEmbed(
-      embedType,
-      threadMessageID,
-      content,
-      attachments
-    );
+      if (options.success !== undefined) embed.setColor(color);
 
-    return channel.send(embed);
-  }
+      embed
+        .setFooter(`ID ${options.interactionID} • ${embedType}`)
+        .setTimestamp();
+    }
 
-  /**
-   * Creates a moderator reply on the thread
-   * @param moderator The author of the message
-   * @param content The content of the message
-   * @param attachments The attachments of the message
-   */
-  public async createModReply(
-    moderator: User,
-    content: string,
-    attachments: ThreadAttachment[]
-  ) {
-    return this.createThreadMessage(InteractionType.MODERATOR, {
-      content,
-      attachments,
-      authorID: moderator.id
-    });
+    return this.mailChannel ? this.mailChannel.send(embed) : null;
   }
 
   /**
@@ -482,35 +482,20 @@ export class Thread {
   }
 
   /**
-   * Creates an embed to format a Thread message
-   * @param type The type of embed
-   * @param threadMessageID The thread message id
-   * @param content The content of the message
-   * @param attachments The files of the message
-   * @returns The constructed embed message
+   * Creates an embed for the normalized message
+   * @param author The author of the message
+   * @param message The contents of the message
+   * @returns The embed
    */
-  private _createThreadEmbed(
-    type: ThreadEmbedType,
-    threadMessageID: number,
-    content: string,
-    attachments: ThreadAttachment[]
-  ) {
-    if (!this._user)
-      throw new Error("Cannot create thread embed without a user.");
-
-    const formattedAttachments = attachments
+  private _createInteractionEmbed(author: User, message: NormalizedMessage) {
+    const formattedAttachments = message.attachments
       .map((x) => `**[${x.name}](${x.url})**`)
       .join("\n");
 
     const embed = new MessageEmbed()
-      .setColor(parseEmbedTypeToColor(type))
-      .setThumbnail(this._user.displayAvatarURL({ dynamic: true }))
-      .setDescription(`**${this._user.tag}**\n─────────────\n${content}`);
-
-    if (type !== ThreadEmbedType.ModReply)
-      embed
-        .setFooter(`ID: ${threadMessageID} • ${parseEmbedTypeToString(type)}`)
-        .setTimestamp();
+      .setColor(Constants.Colors.Primary)
+      .setThumbnail(author.displayAvatarURL({ dynamic: true }))
+      .setDescription(`**${author.tag}**\n─────────────\n${message.content}`);
 
     if (formattedAttachments)
       embed.addField("__Attachments:__", formattedAttachments);
@@ -532,8 +517,15 @@ export class Thread {
 }
 
 export enum ThreadEmbedType {
-  ThreadMessageReceived,
-  ThreadMessageSent,
-  ThreadMessageFailed,
-  ModReply
+  MessageReceived,
+  MessageSent,
+  MessageFailed
 }
+
+export interface InteractionOptions {
+  interactionID: number;
+  embedType: ThreadEmbedType;
+  success?: boolean;
+}
+
+export type InteractionContent = Message | NormalizedMessage;
