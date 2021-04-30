@@ -222,6 +222,27 @@ export class Thread {
   }
 
   /**
+   * Unsubscribes a user to thread message alerts
+   * @param userID The user that unsubscribed
+   * @returns The thread
+   */
+  public async unsubscribe(userID: string) {
+    if (!this.subscriptions.includes(userID)) return this;
+    this.subscriptions = this.subscriptions.filter((x) => x !== userID);
+
+    await this.client.db.client.thread.update({
+      where: {
+        id: this.id
+      },
+      data: {
+        subscriptions: this.subscriptions
+      }
+    });
+
+    return this;
+  }
+
+  /**
    * Creates a thread interaction
    * @param type The type of interaction
    * @param message The content of the interaction
