@@ -40,5 +40,5 @@ export default class Block extends Command {
 }
 
 interface Args {
-  user: User;
+  user?: User;
 }
