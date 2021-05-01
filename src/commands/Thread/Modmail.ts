@@ -17,7 +17,7 @@ export default class Modmail extends Command {
     const thread = await new Thread(this.client, args.user.id).ensure(true);
     return message.channel.send(
       `**${args.user.tag}'s** modmail thread is ${
-        thread.mailChannel ?? "not available"
+        thread?.mailChannel ?? "not available"
       }.`
     );
   }
