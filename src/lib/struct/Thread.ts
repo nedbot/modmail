@@ -95,8 +95,6 @@ export class Thread {
       this.channelID = channelID;
     }
 
-    // TODO - Check if the user is blocked
-
     return this;
   }
 
@@ -443,10 +441,30 @@ export class Thread {
    * @returns The created Thread
    */
   private async _create(manual: boolean = false) {
+    await this.ensureUser();
+
+    const user = await this.client.db.client.user.findFirst({
+      where: {
+        id: this.userID
+      }
+    });
+
+    if (!manual) {
+      if (user?.blocked) {
+        const embed = this._createSystemEmbed(
+          Constants.Blocked(user.blocked_reason ?? "No reason specified.")
+        ).setColor(Constants.Colors.Red);
+
+        await this._user?.send(embed);
+        return null;
+      }
+
+      const embed = this._createSystemEmbed(Constants.MessageReceived);
+      await this._user?.send(embed);
+    }
+
     const channel = await this._createMailChannel(false);
     if (channel) this.channelID = channel.id;
-
-    await this.ensureUser();
 
     const thread = await this.client.db.client.thread.create({
       data: {
@@ -455,11 +473,6 @@ export class Thread {
         user_id: this.userID
       }
     });
-
-    if (!manual) {
-      const embed = this._createSystemEmbed(Constants.MessageReceived);
-      await this._user?.send(embed);
-    }
 
     this._patch(thread);
 

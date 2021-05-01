@@ -11,6 +11,6 @@ export default class DirectMessage extends Listener {
     if (message.guild || message.author.bot) return;
 
     const thread = await new Thread(this.client, message.author.id).ensure();
-    await thread.createRecipientInteraction(message);
+    if (thread) await thread.createRecipientInteraction(message);
   }
 }

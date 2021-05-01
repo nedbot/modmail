@@ -6,3 +6,5 @@ export enum Colors {
 
 export const MessageReceived =
   "Thank you for your message! Please hang tight. Moderators will contact you as soon as possible!";
+export const Blocked = (reason: string) =>
+  `You are blocked from sending modmail for "${reason}".`;
