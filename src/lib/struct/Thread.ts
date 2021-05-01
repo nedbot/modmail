@@ -202,6 +202,25 @@ export class Thread {
   }
 
   /**
+   * Marks the thread as answered
+   * @returns The thread
+   */
+  public async markAsAnswered() {
+    await this.client.db.client.thread.update({
+      where: {
+        id: this.id
+      },
+      data: {
+        is_answered: true
+      }
+    });
+
+    await this.setParent(ThreadParentType.InProgress);
+
+    return this;
+  }
+
+  /**
    * Subscribes a user to thread message alerts
    * @param userID The user that subscribed
    * @returns The thread
