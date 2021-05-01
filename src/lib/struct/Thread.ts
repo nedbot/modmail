@@ -72,11 +72,12 @@ export class Thread {
 
   /**
    * Ensures this Thread exists in the database
+   * @param manual Whether this thread is ensured by mods
    * @returns This thread
    */
-  public async ensure() {
+  public async ensure(manual: boolean = false) {
     const openThread = await this._fetchOpenThread();
-    if (!openThread) return this._create();
+    if (!openThread) return this._create(manual);
 
     const channel = await this.ensureMailChannel();
     const channelID = channel?.id ?? null;
@@ -419,9 +420,10 @@ export class Thread {
 
   /**
    * Creates the Thread entry
+   * @param manual Whether this thread was created by mods
    * @returns The created Thread
    */
-  private async _create() {
+  private async _create(manual: boolean = false) {
     const channel = await this._createMailChannel(false);
     if (channel) this.channelID = channel.id;
 
@@ -435,8 +437,10 @@ export class Thread {
       }
     });
 
-    const embed = this._createSystemEmbed(Constants.MessageReceived);
-    await this._user?.send(embed);
+    if (!manual) {
+      const embed = this._createSystemEmbed(Constants.MessageReceived);
+      await this._user?.send(embed);
+    }
 
     this._patch(thread);
 
