@@ -8,6 +8,11 @@ import { InitCommand, Constants } from "#lib";
     {
       id: "user",
       type: "user"
+    },
+    {
+      id: "all",
+      match: "flag",
+      flag: ["--all", "-a"]
     }
   ]
 })
@@ -27,8 +32,7 @@ export default class Block extends Command {
       },
       orderBy: {
         id: "desc"
-      },
-      take: 12
+      }
     });
 
     const embed = new MessageEmbed()
@@ -36,9 +40,21 @@ export default class Block extends Command {
       .setAuthor(
         `Modmail logs for ${args.user.tag}`,
         args.user.displayAvatarURL()
-      )
+      );
+
+    if (args.all) {
+      embed.setDescription(
+        `All thread IDs relevant to this user:\n\n${threads.map(
+          (thread) => `**\`#${thread.id}\`**`
+        )}`
+      );
+
+      return message.channel.send(embed);
+    }
+
+    embed
       .setDescription(
-        threads.map((thread, i) => {
+        threads.slice(0, 12).map((thread, i) => {
           const threadID = `Thread #${thread.id}`;
           const created = `Created ${thread.created_at.toLocaleString()}`;
           const closed = thread.closed_at
@@ -58,4 +74,5 @@ export default class Block extends Command {
 
 interface Args {
   user: User;
+  all: boolean;
 }
