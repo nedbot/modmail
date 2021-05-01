@@ -43,30 +43,24 @@ export default class Block extends Command {
       );
 
     if (args.all) {
-      embed.setDescription(
-        `All thread IDs relevant to this user:\n\n${threads.map(
-          (thread) => `**\`#${thread.id}\`**`
-        )}`
-      );
-
+      const logs = threads.map((thread) => `**\`#${thread.id}\`**`);
+      embed.setDescription(`All thread IDs relevant to this user:\n\n${logs}`);
       return message.channel.send(embed);
     }
 
-    embed
-      .setDescription(
-        threads.slice(0, 12).map((thread, i) => {
-          const threadID = `Thread #${thread.id}`;
-          const created = `Created ${thread.created_at.toLocaleString()}`;
-          const closed = thread.closed_at
-            ? `Closed ${thread.closed_at.toLocaleString()}`
-            : `Ongoing ${new Date().toLocaleString()}`;
+    const logs = threads.slice(0, 12).map((thread, i) => {
+      const threadID = `Thread #${thread.id}`;
+      const created = `Created ${thread.created_at.toLocaleString()}`;
+      const closed = thread.closed_at
+        ? `Closed ${thread.closed_at.toLocaleString()}`
+        : `Ongoing ${new Date().toLocaleString()}`;
 
-          let log = `${threadID} • ${created} • ${closed}`;
-          if (i % 2 === 0) return log;
-          return `**${log}**`;
-        })
-      )
-      .setFooter("Showing the latest 12 logs.");
+      let log = `${threadID} • ${created} • ${closed}`;
+      if (i % 2 === 0) return log;
+      return `**${log}**`;
+    });
+
+    embed.setDescription(logs).setFooter("Showing the latest 12 logs.");
 
     return message.channel.send(embed);
   }
