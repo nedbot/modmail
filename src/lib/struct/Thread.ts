@@ -190,7 +190,8 @@ export class Thread {
         id: this.id
       },
       data: {
-        status: ThreadStatus.CLOSED
+        status: ThreadStatus.CLOSED,
+        closed_at: new Date()
       }
     });
 
